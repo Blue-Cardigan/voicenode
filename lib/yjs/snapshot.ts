@@ -90,49 +90,36 @@ export function attachSnapshotWriter(
   const onUpdate = () => schedule();
   ydoc.on("update", onUpdate);
 
-  const onBeforeUnload = () => {
+  // On tab hide, best-effort flush via the supabase client so the session JWT
+  // is attached (board_snapshots RLS requires the user's JWT — anon won't pass).
+  // `visibilitychange === 'hidden'` is more reliable than `beforeunload`
+  // (fires on mobile backgrounding, tab switches, and unloads).
+  const onVisibilityChange = () => {
+    if (document.visibilityState !== "hidden") return;
     if (!pending) return;
-    const state = Y.encodeStateAsUpdate(ydoc);
-    const b64 = toBase64(state);
-    // Best-effort sync flush. PostgREST POST with keepalive.
-    const url = (supabase as unknown as { supabaseUrl?: string }).supabaseUrl;
-    const key = (supabase as unknown as { supabaseKey?: string }).supabaseKey;
-    if (!url || !key) return;
-    try {
-      void fetch(`${url}/rest/v1/${TABLE}?on_conflict=board_id`, {
-        method: "POST",
-        keepalive: true,
-        headers: {
-          apikey: key,
-          authorization: `Bearer ${key}`,
-          "content-type": "application/json",
-          prefer: "resolution=merge-duplicates",
-        },
-        body: JSON.stringify({
-          board_id: boardId,
-          yjs_state: b64,
-          updated_at: new Date().toISOString(),
-        }),
-      });
-    } catch {
-      // ignore
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
     }
+    void flush();
   };
 
-  if (typeof window !== "undefined") {
-    window.addEventListener("beforeunload", onBeforeUnload);
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", onVisibilityChange);
   }
 
   return () => {
-    destroyed = true;
     ydoc.off("update", onUpdate);
     if (timer) {
       clearTimeout(timer);
       timer = null;
     }
-    if (typeof window !== "undefined") {
-      window.removeEventListener("beforeunload", onBeforeUnload);
+    if (typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     }
+    // Final best-effort flush before marking destroyed (flush early-returns
+    // when destroyed is true).
     if (pending) void flush();
+    destroyed = true;
   };
 }
