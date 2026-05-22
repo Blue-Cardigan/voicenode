@@ -1,23 +1,21 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Auth surface", () => {
-  test("login page exposes Google and GitHub providers", async ({ page }) => {
-    await page.goto("/login");
-
-    await expect(
-      page.getByRole("heading", { name: /sign in/i })
-    ).toBeVisible({ timeout: 10_000 });
-
-    // Provider buttons — these are <button> elements in <SignInButton />.
-    await expect(page.getByRole("button", { name: /google/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /github/i })).toBeVisible();
+// voicenode is anon-only — no login wall. This spec used to assert the
+// /login redirect; replaced with a smoke that confirms /dashboard and a
+// seeded board page are reachable without any auth round-trip.
+test.describe("No auth required", () => {
+  test("/dashboard loads directly without redirecting to /login", async ({ page }) => {
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: /boards/i })).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
-  test("unauthenticated /dashboard redirects to /login", async ({ page }) => {
-    const response = await page.goto("/dashboard");
-    // Either the server redirected, or middleware sent us to /login.
-    await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10_000 });
-    // Don't assert response.status — Next can rewrite or 200 after redirect.
-    expect(response).not.toBeNull();
+  test("seeded welcome board opens directly", async ({ page }) => {
+    await page.goto("/b/11111111-1111-1111-1111-111111111111");
+    await expect(page).toHaveURL(/\/b\/11111111/, { timeout: 10_000 });
+    // No redirect to /login expected.
+    expect(page.url()).not.toMatch(/\/login/);
   });
 });
