@@ -37,6 +37,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(pnpm ls @playwright/test --depth=0 --json | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const j=JSON.parse(d);const v=(Array.isArray(j)?j[0]:j).devDependencies?.["@playwright/test"]?.version||"";console.log(v);})')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}-chromium
+
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
@@ -50,3 +61,12 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 14
+
+      - name: Upload traces on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/**/trace.zip
+          retention-days: 14
+          if-no-files-found: ignore
