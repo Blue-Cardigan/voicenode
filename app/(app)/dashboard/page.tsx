@@ -1,6 +1,7 @@
 import { createBoard } from "./actions";
 import { listAllBoards } from "./board-list";
 import { BoardCard } from "./board-card";
+import { DashboardAnalyticsTracker } from "./analytics-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-10 px-6 py-16">
+      <DashboardAnalyticsTracker boardCount={boards.length} />
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-[0.18em] text-zinc-500">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
