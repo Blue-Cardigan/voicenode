@@ -99,9 +99,17 @@ export type ToolName = (typeof TOOL_NAMES)[number];
 export function buildClientTools(ctx: ToolContext): Record<ToolName, (args: Record<string, unknown>) => unknown> {
   const editor = ctx.editor;
 
+  // Agent-driven mutations are wrapped in store.mergeRemoteChanges so they
+  // surface as source: "remote" to listeners. The board-awareness summariser
+  // filters to source: "user", so without this the SDK would echo its own
+  // edits back to itself.
   function withHistoryMark<T>(fn: () => T): T {
     editor.markHistoryStoppingPoint("voice-turn");
-    return fn();
+    let result!: T;
+    editor.store.mergeRemoteChanges(() => {
+      result = fn();
+    });
+    return result;
   }
 
   return {

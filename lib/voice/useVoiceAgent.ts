@@ -127,6 +127,22 @@ export function useVoiceAgent(options: VoiceAgentOptions = {}) {
     }
   }, [conversation]);
 
+  const sendContextualUpdate = useCallback(
+    (text: string) => {
+      if (!text) return;
+      if (conversation.status !== "connected") return;
+      const c = conversation as unknown as {
+        sendContextualUpdate?: (t: string) => void;
+      };
+      try {
+        c.sendContextualUpdate?.(text);
+      } catch {
+        // ignore — SDK may throw if session torn down mid-call
+      }
+    },
+    [conversation],
+  );
+
   const stop = useCallback(async () => {
     try {
       await conversation.endSession();
@@ -181,5 +197,6 @@ export function useVoiceAgent(options: VoiceAgentOptions = {}) {
     setMode,
     start,
     stop,
+    sendContextualUpdate,
   };
 }
