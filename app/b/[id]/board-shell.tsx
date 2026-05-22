@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Editor } from "tldraw";
 import Link from "next/link";
 import { Board } from "@/components/canvas/Board";
@@ -9,10 +9,15 @@ import { Transcript } from "@/components/voice/Transcript";
 import { useVoiceAgent, type ClientTools } from "@/lib/voice/useVoiceAgent";
 import { buildClientTools } from "@/lib/voice/tools";
 import { useBoardContextUpdates } from "@/lib/voice/context-summariser";
+import { track } from "@/lib/analytics";
 
 export function BoardShell({ id }: { id: string }) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+
+  useEffect(() => {
+    track("board_opened", { boardId: id });
+  }, [id]);
 
   const clientTools = useMemo<ClientTools>(() => {
     if (!editor) return {};
