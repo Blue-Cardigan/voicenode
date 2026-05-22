@@ -46,6 +46,7 @@ export function Board({ boardId, onMount }: BoardProps) {
   return (
     <div className="absolute inset-0">
       <Tldraw
+        key={boardId}
         onMount={(editor) => {
           const ydoc = new Y.Doc();
           let disposed = false;
