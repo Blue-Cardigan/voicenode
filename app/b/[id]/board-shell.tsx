@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Editor } from "tldraw";
 import Link from "next/link";
+import { ConversationProvider } from "@elevenlabs/react";
 import { Board } from "@/components/canvas/Board";
 import { VoiceHUD } from "@/components/voice/VoiceHUD";
 import { Transcript } from "@/components/voice/Transcript";
@@ -12,6 +13,14 @@ import { useBoardContextUpdates } from "@/lib/voice/context-summariser";
 import { track } from "@/lib/analytics";
 
 export function BoardShell({ id }: { id: string }) {
+  return (
+    <ConversationProvider>
+      <BoardShellInner id={id} />
+    </ConversationProvider>
+  );
+}
+
+function BoardShellInner({ id }: { id: string }) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
 
