@@ -41,7 +41,12 @@ export function useVoiceAgent() {
       if (entry) setTranscript((t) => [...t, entry]);
     },
     onError: (err: unknown) => {
-      const text = typeof err === "string" ? err : (err as Error)?.message ?? "Voice agent error";
+      const text =
+        typeof err === "string"
+          ? err
+          : err instanceof Error
+            ? err.message
+            : "Voice agent error";
       setErrorMessage(text);
     },
   });
@@ -77,31 +82,30 @@ export function useVoiceAgent() {
     }
   }, [conversation]);
 
+  // Space sends a user-activity nudge while connected; the SDK already handles barge-in,
+  // so this is not true push-to-talk muting. Track this if PTT muting is needed later.
   useEffect(() => {
     if (mode !== "ptt") return;
-    function onKey(down: boolean) {
-      return (e: KeyboardEvent) => {
-        if (e.code !== "Space" || e.repeat) return;
-        if ((e.target as HTMLElement | null)?.tagName === "INPUT") return;
-        if ((e.target as HTMLElement | null)?.tagName === "TEXTAREA") return;
-        e.preventDefault();
-        if (conversation.status === "connected") {
-          conversation.sendUserActivity?.();
-          if (down) {
-            // already-on-mic mode: we just nudge activity; barge-in handled by SDK
-          }
-        }
-      };
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code !== "Space" || e.repeat) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      e.preventDefault();
+      if (conversation.status === "connected") {
+        conversation.sendUserActivity?.();
+      }
     }
-    const onDown = onKey(true);
-    const onUp = onKey(false);
-    window.addEventListener("keydown", onDown);
-    window.addEventListener("keyup", onUp);
-    return () => {
-      window.removeEventListener("keydown", onDown);
-      window.removeEventListener("keyup", onUp);
-    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [mode, conversation]);
+
+  // Tear down the WebRTC session on unmount so navigating away releases the mic.
+  useEffect(() => {
+    return () => {
+      void conversation.endSession().catch(() => {});
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const status: AgentStatus = (() => {
     if (errorMessage) return "error";
