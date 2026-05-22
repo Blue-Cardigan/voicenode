@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { Editor } from "tldraw";
 import "tldraw/tldraw.css";
 
 const Tldraw = dynamic(
@@ -16,10 +17,16 @@ function CanvasFallback() {
   );
 }
 
-export function Board({ persistenceKey }: { persistenceKey: string }) {
+export function Board({
+  persistenceKey,
+  onMount,
+}: {
+  persistenceKey: string;
+  onMount?: (editor: Editor) => void;
+}) {
   return (
     <div className="absolute inset-0">
-      <Tldraw persistenceKey={persistenceKey} />
+      <Tldraw persistenceKey={persistenceKey} onMount={onMount} />
     </div>
   );
 }

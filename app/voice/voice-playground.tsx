@@ -1,12 +1,12 @@
 "use client";
 
+import { ConversationProvider } from "@elevenlabs/react";
 import { Transcript } from "@/components/voice/Transcript";
 import { VoiceHUD } from "@/components/voice/VoiceHUD";
 import { useVoiceAgent } from "@/lib/voice/useVoiceAgent";
 
-export function VoicePlayground() {
+function Inner() {
   const v = useVoiceAgent();
-
   return (
     <div className="flex w-full flex-col items-center gap-4">
       <VoiceHUD
@@ -20,5 +20,13 @@ export function VoicePlayground() {
       />
       <Transcript entries={v.transcript} />
     </div>
+  );
+}
+
+export function VoicePlayground() {
+  return (
+    <ConversationProvider>
+      <Inner />
+    </ConversationProvider>
   );
 }

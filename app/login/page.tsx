@@ -1,15 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { DEV_AUTH_BYPASS } from "@/lib/supabase/env";
 import { SignInButton } from "./sign-in-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string; error?: string }>;
-}) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const { next, error } = await searchParams;
+  if (DEV_AUTH_BYPASS) redirect(next ?? "/dashboard");
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   if (data.user) redirect(next ?? "/dashboard");
@@ -21,20 +19,14 @@ export default async function LoginPage({
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           voicenode
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-          Sign in
-        </h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Pick a provider — we only store your name and avatar.
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">Sign in</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Pick a provider — we only store your name and avatar.</p>
       </div>
-
       {error && (
         <div className="w-full max-w-sm rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
           {decodeURIComponent(error)}
         </div>
       )}
-
       <div className="flex w-full max-w-sm flex-col gap-2">
         <SignInButton provider="google" next={next} />
         <SignInButton provider="github" next={next} />
