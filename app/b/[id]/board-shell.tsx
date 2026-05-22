@@ -8,6 +8,7 @@ import { VoiceHUD } from "@/components/voice/VoiceHUD";
 import { Transcript } from "@/components/voice/Transcript";
 import { useVoiceAgent, type ClientTools } from "@/lib/voice/useVoiceAgent";
 import { buildClientTools } from "@/lib/voice/tools";
+import { useBoardContextUpdates } from "@/lib/voice/context-summariser";
 
 export function BoardShell({ id }: { id: string }) {
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -19,6 +20,8 @@ export function BoardShell({ id }: { id: string }) {
   }, [editor]);
 
   const v = useVoiceAgent({ clientTools });
+
+  useBoardContextUpdates(editor, v.sendContextualUpdate);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950">
