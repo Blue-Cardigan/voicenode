@@ -1,9 +1,16 @@
 "use client";
 
+/* eslint-disable react-hooks/refs --
+   The clientTools Proxy traps are invoked by the ElevenLabs SDK during tool
+   calls (post-render), not during React's render. Reading toolsRef.current
+   inside them is safe; the rule can't infer this. */
+
 import { useConversation } from "@elevenlabs/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type AgentMode = "ptt" | "open";
+
+export type ClientTools = Record<string, (args: Record<string, unknown>) => unknown>;
 
 export type AgentStatus = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
@@ -27,13 +34,59 @@ function entryFromMessage(msg: RawMessage): TranscriptEntry | null {
   };
 }
 
-export function useVoiceAgent() {
+export interface VoiceAgentOptions {
+  /**
+   * Client-side tools the agent can invoke. Pass a stable reference (e.g. via
+   * useMemo) so the conversation does not re-init on every render.
+   */
+  clientTools?: ClientTools;
+}
+
+export function useVoiceAgent(options: VoiceAgentOptions = {}) {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<AgentMode>("ptt");
   const startingRef = useRef(false);
 
+  // Keep clientTools in a ref so the agent always invokes the latest handlers,
+  // avoiding session re-init when the canvas editor identity changes.
+  const toolsRef = useRef<ClientTools>(options.clientTools ?? {});
+  useEffect(() => {
+    toolsRef.current = options.clientTools ?? {};
+  }, [options.clientTools]);
+
+  // ElevenLabs requires tool returns to be string | number | void; we wrap
+  // each handler so it always returns a JSON string of the structured result.
+  const clientTools = useMemo(() => {
+    type SDKHandler = (args: Record<string, unknown>) => string | Promise<string>;
+    return new Proxy({} as Record<string, SDKHandler>, {
+      get: (_t, name: string) => {
+        const handler: SDKHandler = async (args) => {
+          const fn = toolsRef.current[name];
+          let result: unknown;
+          if (!fn) {
+            result = { status: "error", message: `Tool ${name} not registered.` };
+          } else {
+            try {
+              result = await fn(args);
+            } catch (e) {
+              result = {
+                status: "error",
+                message: e instanceof Error ? e.message : String(e),
+              };
+            }
+          }
+          return JSON.stringify(result ?? { status: "ok" });
+        };
+        return handler;
+      },
+      ownKeys: () => Object.keys(toolsRef.current),
+      getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }),
+    });
+  }, []);
+
   const conversation = useConversation({
+    clientTools,
     onConnect: () => setErrorMessage(null),
     onDisconnect: () => {},
     onMessage: (msg: unknown) => {

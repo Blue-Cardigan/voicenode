@@ -18,6 +18,19 @@ type ToolResult =
   | { status: "ambiguous"; message: string; candidates: ShapeMeta[] }
   | { status: "error"; message: string };
 
+
+function asRichText(text: string) {
+  return {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: text ? [{ type: "text", text }] : [],
+      },
+    ],
+  } as unknown;
+}
+
 function ok(message: string, ids?: string[]): ToolResult {
   return { status: "ok", message, ids };
 }
@@ -104,8 +117,8 @@ export function buildClientTools(ctx: ToolContext): Record<ToolName, (args: Reco
           type: "note",
           x: center.x - 100,
           y: center.y - 100,
-          props: { text, color },
-        });
+          props: { richText: asRichText(text), color },
+        } as never);
       });
       return ok(`Added a ${color} note: "${text}"`, [id]);
     },
@@ -127,9 +140,9 @@ export function buildClientTools(ctx: ToolContext): Record<ToolName, (args: Reco
               color,
               start: { x: 0, y: 0 },
               end: { x: 200, y: 0 },
-              text,
+              richText: asRichText(text),
             },
-          });
+          } as never);
         } else {
           editor.createShape({
             id,
@@ -139,11 +152,11 @@ export function buildClientTools(ctx: ToolContext): Record<ToolName, (args: Reco
             props: {
               geo: kind === "ellipse" ? "ellipse" : "rectangle",
               color,
-              text,
+              richText: asRichText(text),
               w: 150,
               h: 100,
             },
-          });
+          } as never);
         }
       });
       return ok(`Created a ${color} ${kind}${text ? `: "${text}"` : ""}`, [id]);
@@ -154,7 +167,7 @@ export function buildClientTools(ctx: ToolContext): Record<ToolName, (args: Reco
       const resolved = resolveOne(editor, selector);
       if (typeof resolved !== "string") return resolved;
       const patch: Record<string, unknown> = {};
-      if (typeof args.text === "string") patch.text = args.text;
+      if (typeof args.text === "string") patch.richText = asRichText(args.text);
       if (typeof args.color === "string") patch.color = normalizeColor(args.color);
       if (Object.keys(patch).length === 0) return err("Nothing to update.");
       const shape = editor.getShape(resolved as TLShapeId);
@@ -164,7 +177,7 @@ export function buildClientTools(ctx: ToolContext): Record<ToolName, (args: Reco
           id: shape.id,
           type: shape.type,
           props: { ...(shape.props as object), ...patch },
-        });
+        } as never);
       });
       return ok(`Updated ${shape.id}.`, [shape.id]);
     },
@@ -207,7 +220,7 @@ export function buildClientTools(ctx: ToolContext): Record<ToolName, (args: Reco
           type: shape.type,
           x: shape.x + dx,
           y: shape.y + dy,
-        });
+        } as never);
       });
       return ok(`Moved ${shape.id} by (${Math.round(dx)}, ${Math.round(dy)}).`, [shape.id]);
     },
