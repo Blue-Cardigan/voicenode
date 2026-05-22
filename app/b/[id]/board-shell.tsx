@@ -11,9 +11,110 @@ import { buildClientTools } from "@/lib/voice/tools";
 import { useBoardContextUpdates } from "@/lib/voice/context-summariser";
 import { track } from "@/lib/analytics";
 
+const ADJECTIVES = [
+  "Brisk",
+  "Calm",
+  "Daring",
+  "Eager",
+  "Fancy",
+  "Gentle",
+  "Happy",
+  "Jolly",
+  "Keen",
+  "Lively",
+  "Mellow",
+  "Nimble",
+  "Plucky",
+  "Quick",
+  "Rapid",
+  "Sunny",
+  "Tidy",
+  "Witty",
+  "Zesty",
+];
+const ANIMALS = [
+  "Otter",
+  "Owl",
+  "Fox",
+  "Wolf",
+  "Hawk",
+  "Lynx",
+  "Bear",
+  "Crane",
+  "Heron",
+  "Moth",
+  "Newt",
+  "Pika",
+  "Quail",
+  "Raven",
+  "Stoat",
+  "Tern",
+  "Vole",
+  "Wren",
+];
+
+type AnonUser = { id: string; name: string; color: string };
+
+const STORAGE_KEY = "voicenode:anon-user";
+
+function pick<T>(arr: T[], rng: () => number): T {
+  return arr[Math.floor(rng() * arr.length)];
+}
+
+function randomUser(): AnonUser {
+  const rng = Math.random;
+  const adj = pick(ADJECTIVES, rng);
+  const animal = pick(ANIMALS, rng);
+  const num = Math.floor(rng() * 99) + 1;
+  // High-saturation, fixed lightness HSL → good contrast on light & dark.
+  const hue = Math.floor(rng() * 360);
+  const color = `hsl(${hue} 70% 50%)`;
+  const id =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${adj}-${animal}-${num}-${Math.random().toString(36).slice(2, 8)}`;
+  return { id, name: `${adj} ${animal} ${num}`, color };
+}
+
+function loadOrCreateAnonUser(): AnonUser {
+  if (typeof window === "undefined") {
+    // Server render – will be replaced on hydration. Use stable placeholder.
+    return { id: "anon", name: "Anonymous", color: "hsl(220 70% 50%)" };
+  }
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<AnonUser>;
+      if (parsed.id && parsed.name && parsed.color) {
+        return parsed as AnonUser;
+      }
+    }
+  } catch {
+    // ignore quota / parse errors
+  }
+  const fresh = randomUser();
+  try {
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+  } catch {
+    // ignore
+  }
+  return fresh;
+}
+
 export function BoardShell({ id }: { id: string }) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+  // Re-evaluate on mount so we read sessionStorage on the client. Server
+  // render returns the placeholder; client render swaps in the stable user.
+  const [anonUser, setAnonUser] = useState<AnonUser>(() =>
+    loadOrCreateAnonUser(),
+  );
+  useEffect(() => {
+    // SSR returns a placeholder so markup matches on hydration; swap in the
+    // real (sessionStorage-backed) anon user on the client after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAnonUser(loadOrCreateAnonUser());
+  }, []);
 
   useEffect(() => {
     track("board_opened", { boardId: id });
@@ -30,7 +131,13 @@ export function BoardShell({ id }: { id: string }) {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950">
-      <Board boardId={id} onMount={setEditor} />
+      <Board
+        boardId={id}
+        userId={anonUser.id}
+        userName={anonUser.name}
+        userColor={anonUser.color}
+        onMount={setEditor}
+      />
 
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between px-4 py-3">
         <Link
