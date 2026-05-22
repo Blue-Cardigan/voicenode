@@ -146,6 +146,20 @@ export function useVoiceAgent(options: VoiceAgentOptions = {}) {
             : "Voice agent error";
       setErrorMessage(text);
     },
+    // Fires when the agent tries to invoke a tool that the SDK didn't find in
+    // our `clientTools` Proxy. Almost always means the tool name registered in
+    // the ElevenLabs dashboard doesn't match the key we registered. Surface it
+    // loudly so the cause is obvious — silent failures here are the #1 reason
+    // "the agent doesn't do anything".
+    onUnhandledClientToolCall: (
+      params: { tool_name?: string; parameters?: unknown } | unknown,
+    ) => {
+      const p = params as { tool_name?: string; parameters?: unknown };
+      const name = p?.tool_name ?? "<unknown>";
+      const msg = `Agent called unregistered tool: ${name}. Run \`pnpm sync-eleven-tools\` or check the agent's tool config.`;
+      console.warn("[voice]", msg, p?.parameters);
+      setErrorMessage(msg);
+    },
   });
 
   const start = useCallback(async () => {
