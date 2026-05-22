@@ -16,9 +16,15 @@ test.describe("Voice HUD smoke", () => {
     const start = page.getByRole("button", { name: /start talking/i });
     await expect(start).toBeVisible({ timeout: 10_000 });
 
-    // Fire-and-watch: the click can resolve into connecting -> error very
-    // quickly under the mocks, so accept either as evidence the path ran.
+    // Wait for the stubbed token endpoint to be hit — that's how we know the
+    // click actually drove the agent flow, rather than the HUD already showing
+    // "error" from an unrelated boot-time failure.
+    const tokenRequest = page.waitForRequest(
+      (req) => /\/api\/agent\/token/.test(req.url()),
+      { timeout: 10_000 }
+    );
     await start.click();
+    await tokenRequest;
 
     const hud = page.locator("text=/connecting|listening|error/i").first();
     await expect(hud).toBeVisible({ timeout: 10_000 });
