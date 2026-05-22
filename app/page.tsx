@@ -13,9 +13,12 @@ export default function Home() {
         agent you converse with naturally. Multiplayer, public or private,
         powered by ElevenLabs and Supabase.
       </p>
-      <div className="text-xs text-zinc-500 dark:text-zinc-500">
-        Coming soon.
-      </div>
+      <a
+        href="/login"
+        className="inline-flex h-11 items-center justify-center rounded-md bg-zinc-950 px-5 text-sm font-medium text-zinc-50 transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
+      >
+        Sign in to start
+      </a>
     </main>
   );
 }
