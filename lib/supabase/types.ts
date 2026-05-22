@@ -30,6 +30,30 @@ export interface Profile {
   created_at: string;
 }
 
+export interface BoardCollaborator {
+  board_id: string;
+  user_id: string;
+  role: CollaboratorRole;
+  created_at: string;
+}
+
+export interface BoardSnapshot {
+  id: string;
+  board_id: string;
+  document: Json;
+  created_at: string;
+  created_by: string | null;
+}
+
+export interface BoardEvent {
+  id: string;
+  board_id: string;
+  actor_id: string | null;
+  kind: string;
+  payload: Json;
+  created_at: string;
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -38,6 +62,21 @@ export type Database = {
         Row: Board;
         Insert: Partial<Board> & { owner_id: string };
         Update: Partial<Board>;
+      };
+      board_collaborators: {
+        Row: BoardCollaborator;
+        Insert: Partial<BoardCollaborator> & { board_id: string; user_id: string };
+        Update: Partial<BoardCollaborator>;
+      };
+      board_snapshots: {
+        Row: BoardSnapshot;
+        Insert: Partial<BoardSnapshot> & { board_id: string; document: Json };
+        Update: Partial<BoardSnapshot>;
+      };
+      board_events: {
+        Row: BoardEvent;
+        Insert: Partial<BoardEvent> & { board_id: string; kind: string };
+        Update: Partial<BoardEvent>;
       };
     };
   };

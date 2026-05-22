@@ -49,7 +49,9 @@ create index board_events_board_created_idx on public.board_events (board_id, cr
 
 -- updated_at trigger for boards
 create or replace function public.set_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql
+set search_path = public, pg_temp
+as $$
 begin
   new.updated_at = now();
   return new;

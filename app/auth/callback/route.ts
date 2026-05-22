@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const nextParam = searchParams.get("next");
+  // Allowlist: must be a single-slash internal path, not a protocol-relative URL
+  const next = nextParam && /^\/[^/\\]/.test(nextParam) ? nextParam : "/dashboard";
 
   if (!code) {
     return NextResponse.redirect(

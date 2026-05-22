@@ -37,15 +37,20 @@ returns boolean language sql stable as $$
 $$;
 
 -- helper: can the caller edit board b?
+-- Edit access is gated on the caller being signed in. `public` visibility grants
+-- world-read, not world-write. `link` visibility grants edit when the correct
+-- link token header is present (collaborative-by-link is the intended UX).
 create or replace function public.can_edit_board(b public.boards)
 returns boolean language sql stable as $$
   select
-    b.owner_id = auth.uid()
-    or b.visibility = 'public'
-    or (b.visibility = 'link' and b.link_token is not null and b.link_token = public.current_link_token())
-    or exists (
-      select 1 from public.board_collaborators c
-      where c.board_id = b.id and c.user_id = auth.uid() and c.role = 'editor'
+    auth.uid() is not null
+    and (
+      b.owner_id = auth.uid()
+      or (b.visibility = 'link' and b.link_token is not null and b.link_token = public.current_link_token())
+      or exists (
+        select 1 from public.board_collaborators c
+        where c.board_id = b.id and c.user_id = auth.uid() and c.role = 'editor'
+      )
     );
 $$;
 
