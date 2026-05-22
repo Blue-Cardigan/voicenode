@@ -83,7 +83,7 @@ export function useVoiceAgent() {
   }, [conversation]);
 
   // Space sends a user-activity nudge while connected; the SDK already handles barge-in,
-  // so this is not true push-to-talk muting. Track this if PTT muting is needed later.
+  // so this is not true push-to-talk muting. Revisit if PTT muting is needed later.
   useEffect(() => {
     if (mode !== "ptt") return;
     function onKeyDown(e: KeyboardEvent) {
@@ -102,7 +102,11 @@ export function useVoiceAgent() {
   // Tear down the WebRTC session on unmount so navigating away releases the mic.
   useEffect(() => {
     return () => {
-      void conversation.endSession().catch(() => {});
+      try {
+        void conversation.endSession();
+      } catch {
+        // ignore — already torn down
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
