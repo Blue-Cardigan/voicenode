@@ -1,0 +1,52 @@
+name: E2E
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  playwright:
+    name: Playwright (chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      DEV_AUTH_BYPASS: "1"
+      # Stub Supabase env so the app boots without real credentials.
+      NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "stub-anon-key"
+      SUPABASE_SERVICE_ROLE_KEY: "stub-service-role-key"
+      # Stub ElevenLabs env — the API route is page.route()'d in tests anyway.
+      ELEVENLABS_API_KEY: "stub-elevenlabs-key"
+      ELEVENLABS_AGENT_ID: "stub-agent-id"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: pnpm exec playwright test
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14
