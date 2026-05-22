@@ -1,6 +1,9 @@
 // JSON-schema declarations for the client tools defined in `lib/voice/tools.ts`.
 // Consumed by `scripts/sync-eleven-tools.ts` to register the tools with the
 // ElevenLabs vibenode agent. Keep names in sync with `TOOL_NAMES` in tools.ts.
+//
+// Note: ElevenLabs requires every property (including nested ones inside
+// object schemas) to carry a `description`. Don't drop them when extending.
 
 export interface ToolDeclaration {
   name: string;
@@ -12,26 +15,32 @@ export interface ToolDeclaration {
   };
 }
 
-const SELECTOR: Record<string, unknown> = {
+const SELECTOR = {
   type: "object",
   description:
     "A selector matching one shape on the board. Combine fields to disambiguate.",
   properties: {
-    id: { type: "string", description: "Exact tldraw shape id (rare)." },
+    id: {
+      type: "string",
+      description: "Exact tldraw shape id. Rarely used; prefer textContains.",
+    },
     textContains: {
       type: "string",
       description: "Case-insensitive substring match on the shape's text.",
     },
     color: {
       type: "string",
-      description: "tldraw colour name: yellow, green, blue, red, orange, violet, light-red, black, grey, white.",
+      description:
+        "tldraw colour name: yellow, green, blue, red, orange, violet, light-red, black, grey, white.",
     },
     kind: {
       type: "string",
+      description:
+        "Restrict by shape kind. One of: note, rect, ellipse, arrow, text, other.",
       enum: ["note", "rect", "ellipse", "arrow", "text", "other"],
     },
   },
-};
+} as const;
 
 export const TOOL_DECLARATIONS: ToolDeclaration[] = [
   {
@@ -41,7 +50,10 @@ export const TOOL_DECLARATIONS: ToolDeclaration[] = [
     parameters: {
       type: "object",
       properties: {
-        text: { type: "string", description: "Note text (1–80 chars)." },
+        text: {
+          type: "string",
+          description: "Note text content (1–80 characters).",
+        },
         color: {
           type: "string",
           description:
@@ -58,22 +70,38 @@ export const TOOL_DECLARATIONS: ToolDeclaration[] = [
     parameters: {
       type: "object",
       properties: {
-        kind: { type: "string", enum: ["rect", "ellipse", "arrow"] },
-        text: { type: "string" },
-        color: { type: "string" },
+        kind: {
+          type: "string",
+          description: "Which geometric shape to create.",
+          enum: ["rect", "ellipse", "arrow"],
+        },
+        text: {
+          type: "string",
+          description: "Optional label text inside the shape.",
+        },
+        color: {
+          type: "string",
+          description: "Optional tldraw colour name (defaults to yellow).",
+        },
       },
       required: ["kind"],
     },
   },
   {
     name: "updateShape",
-    description: "Change the text or colour of one shape.",
+    description: "Change the text or colour of one shape on the board.",
     parameters: {
       type: "object",
       properties: {
         target: SELECTOR,
-        text: { type: "string" },
-        color: { type: "string" },
+        text: {
+          type: "string",
+          description: "Replacement text for the shape.",
+        },
+        color: {
+          type: "string",
+          description: "Replacement tldraw colour name.",
+        },
       },
       required: ["target"],
     },
@@ -88,11 +116,21 @@ export const TOOL_DECLARATIONS: ToolDeclaration[] = [
         target: SELECTOR,
         to: {
           type: "object",
+          description:
+            "Either { direction: 'left'|'right'|'up'|'down' } or absolute { x, y } page coordinates.",
           properties: {
-            x: { type: "number" },
-            y: { type: "number" },
+            x: {
+              type: "number",
+              description: "Absolute page x coordinate.",
+            },
+            y: {
+              type: "number",
+              description: "Absolute page y coordinate.",
+            },
             direction: {
               type: "string",
+              description:
+                "Relative direction; moves about 30% of the viewport.",
               enum: ["left", "right", "up", "down"],
             },
           },
@@ -103,7 +141,7 @@ export const TOOL_DECLARATIONS: ToolDeclaration[] = [
   },
   {
     name: "deleteShape",
-    description: "Delete one shape.",
+    description: "Delete one shape from the board.",
     parameters: {
       type: "object",
       properties: { target: SELECTOR },
@@ -112,7 +150,7 @@ export const TOOL_DECLARATIONS: ToolDeclaration[] = [
   },
   {
     name: "focusShape",
-    description: "Pan and zoom to one shape and select it.",
+    description: "Pan and zoom the camera to one shape and select it.",
     parameters: {
       type: "object",
       properties: { target: SELECTOR },
@@ -122,10 +160,16 @@ export const TOOL_DECLARATIONS: ToolDeclaration[] = [
   {
     name: "listShapes",
     description:
-      "Return a compact list of shapes on the board, optionally filtered. Use to disambiguate before mutating.",
+      "Return a compact list of shapes on the board, optionally filtered. Use this to disambiguate before mutating.",
     parameters: {
       type: "object",
-      properties: { filter: SELECTOR },
+      properties: {
+        filter: {
+          ...SELECTOR,
+          description:
+            "Optional filter; omit to list everything on the board.",
+        },
+      },
     },
   },
   {

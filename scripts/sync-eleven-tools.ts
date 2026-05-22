@@ -18,8 +18,13 @@
  * Safe to re-run. Tools not declared here are left untouched.
  */
 
-import "dotenv/config";
+import dotenv from "dotenv";
 import { TOOL_DECLARATIONS, type ToolDeclaration } from "../lib/voice/tool-spec";
+
+// Next.js convention: load .env.local first (machine-specific overrides),
+// then fall back to .env (committed defaults).
+dotenv.config({ path: ".env.local" });
+dotenv.config({ path: ".env" });
 
 const API_BASE = "https://api.elevenlabs.io/v1";
 
