@@ -16,19 +16,16 @@ function randomToken() {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function requireUser() {
-  const supabase = (await createClient()) as unknown as AnyClient;
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/login?next=/dashboard");
-  return { supabase, user: data.user };
+async function anonClient(): Promise<AnyClient> {
+  return (await createClient()) as unknown as AnyClient;
 }
 
 export async function createBoard(formData: FormData) {
   const title = (formData.get("title") as string | null)?.trim() || "Untitled board";
-  const { supabase, user } = await requireUser();
+  const supabase = await anonClient();
   const { data, error } = await supabase
     .from("boards")
-    .insert({ owner_id: user.id, title })
+    .insert({ owner_id: null, title, visibility: "public" })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
@@ -38,21 +35,21 @@ export async function createBoard(formData: FormData) {
 export async function renameBoard(boardId: string, formData: FormData) {
   const title = (formData.get("title") as string | null)?.trim();
   if (!title) return;
-  const { supabase } = await requireUser();
+  const supabase = await anonClient();
   const { error } = await supabase.from("boards").update({ title }).eq("id", boardId);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard");
 }
 
 export async function deleteBoard(boardId: string) {
-  const { supabase } = await requireUser();
+  const supabase = await anonClient();
   const { error } = await supabase.from("boards").delete().eq("id", boardId);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard");
 }
 
 export async function setVisibility(boardId: string, visibility: Visibility) {
-  const { supabase } = await requireUser();
+  const supabase = await anonClient();
   const patch: { visibility: Visibility; link_token?: string | null } = { visibility };
   if (visibility === "link") {
     const { data: existing } = await supabase
@@ -71,7 +68,7 @@ export async function setVisibility(boardId: string, visibility: Visibility) {
 }
 
 export async function regenerateLinkToken(boardId: string) {
-  const { supabase } = await requireUser();
+  const supabase = await anonClient();
   const { error } = await supabase
     .from("boards")
     .update({ link_token: randomToken(), visibility: "link" })
