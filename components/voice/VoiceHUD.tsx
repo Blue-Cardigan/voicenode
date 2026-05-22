@@ -53,12 +53,6 @@ function AudioMeter({ active, tone }: { active: boolean; tone: "listening" | "sp
           }}
         />
       ))}
-      <style>{`
-        @keyframes voicenode-meter {
-          0%, 100% { height: 25%; }
-          50% { height: 100%; }
-        }
-      `}</style>
     </div>
   );
 }
