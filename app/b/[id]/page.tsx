@@ -12,7 +12,7 @@ export default async function BoardPage({
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950">
-      <Board persistenceKey={`voicenode:${id}`} />
+      <Board boardId={id} />
 
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between px-4 py-3">
         <Link
