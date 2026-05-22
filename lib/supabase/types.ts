@@ -57,27 +57,38 @@ export interface BoardEvent {
 export type Database = {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Partial<Profile> & { id: string }; Update: Partial<Profile> };
+      profiles: {
+        Row: Profile;
+        Insert: Partial<Profile> & { id: string };
+        Update: Partial<Profile>;
+        Relationships: [];
+      };
       boards: {
         Row: Board;
         Insert: Partial<Board> & { owner_id: string };
         Update: Partial<Board>;
+        Relationships: [];
       };
       board_collaborators: {
         Row: BoardCollaborator;
         Insert: Partial<BoardCollaborator> & { board_id: string; user_id: string };
         Update: Partial<BoardCollaborator>;
+        Relationships: [];
       };
       board_snapshots: {
         Row: BoardSnapshot;
         Insert: Partial<BoardSnapshot> & { board_id: string; document: Json };
         Update: Partial<BoardSnapshot>;
+        Relationships: [];
       };
       board_events: {
         Row: BoardEvent;
         Insert: Partial<BoardEvent> & { board_id: string; kind: string };
         Update: Partial<BoardEvent>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
   };
 };
