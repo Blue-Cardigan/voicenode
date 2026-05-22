@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Visibility } from "@/lib/supabase/types";
+
+// Hand-rolled Database type doesn't yet satisfy postgrest GenericSchema; drop typing
+// here until `supabase gen types typescript` output replaces lib/supabase/types.ts.
+type AnyClient = SupabaseClient;
 
 function randomToken() {
   const bytes = new Uint8Array(18);
@@ -12,7 +17,7 @@ function randomToken() {
 }
 
 async function requireUser() {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as unknown as AnyClient;
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect("/login?next=/dashboard");
   return { supabase, user: data.user };

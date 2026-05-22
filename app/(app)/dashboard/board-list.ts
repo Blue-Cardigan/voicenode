@@ -1,12 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Board } from "@/lib/supabase/types";
+
+type AnyClient = SupabaseClient;
 
 export interface DashboardBoard extends Board {
   shared: boolean;
 }
 
 export async function listDashboardBoards(userId: string): Promise<DashboardBoard[]> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as unknown as AnyClient;
 
   const [ownedRes, collabRes] = await Promise.all([
     supabase
@@ -25,7 +28,7 @@ export async function listDashboardBoards(userId: string): Promise<DashboardBoar
 
   const owned: DashboardBoard[] = (ownedRes.data ?? []).map((b) => ({ ...b, shared: false }));
 
-  const sharedRows = (collabRes.data ?? []) as Array<{
+  const sharedRows = (collabRes.data ?? []) as unknown as Array<{
     board_id: string;
     boards: Board | null;
   }>;
