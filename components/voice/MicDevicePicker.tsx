@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "voicenode:mic-device-id";
+export const MIC_DEVICE_STORAGE_KEY = "voicenode:mic-device-id";
+const STORAGE_KEY = MIC_DEVICE_STORAGE_KEY;
 
 /**
  * Lists available audio input devices and persists the user's choice to
- * localStorage. The selected deviceId is NOT yet wired through to the
- * ElevenLabs session — that requires changes to useVoiceAgent (out of scope
- * for issue #11 UX polish). See PR notes / follow-up issue.
+ * localStorage under MIC_DEVICE_STORAGE_KEY. useVoiceAgent reads the same key
+ * at session start and applies the deviceId as a getUserMedia constraint,
+ * falling back to the system default on OverconstrainedError / NotFoundError.
  */
 export function MicDevicePicker({
   disabled = false,

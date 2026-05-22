@@ -96,20 +96,43 @@ export const TOOL_NAMES = [
 
 export type ToolName = (typeof TOOL_NAMES)[number];
 
-export function buildClientTools(ctx: ToolContext): Record<ToolName, (args: Record<string, unknown>) => unknown> {
+export type ClientToolsApi = Record<ToolName, (args: Record<string, unknown>) => unknown> & {
+  /**
+   * Coalesces a burst of agent tool calls within a single conversational turn
+   * into one history entry. Call from the voice agent's onMessage handler when
+   * the source transitions from user -> agent (i.e. a new turn started).
+   * The next tool call will lay down a history stopping point; subsequent
+   * calls in the same turn skip it so a single Cmd-Z reverts the whole turn.
+   */
+  markTurnBoundary: () => void;
+};
+
+export function buildClientTools(ctx: ToolContext): ClientToolsApi {
   const editor = ctx.editor;
+
+  // Tracks whether the current conversational turn has already laid down a
+  // history stopping point. Reset by markTurnBoundary() so the next tool call
+  // in the new turn (and only it) emits a fresh stopping point.
+  let turnMarked = false;
 
   // Agent-driven mutations are wrapped in store.mergeRemoteChanges so they
   // surface as source: "remote" to listeners. The board-awareness summariser
   // filters to source: "user", so without this the SDK would echo its own
   // edits back to itself.
   function withHistoryMark<T>(fn: () => T): T {
-    editor.markHistoryStoppingPoint("voice-turn");
+    if (!turnMarked) {
+      editor.markHistoryStoppingPoint("voice-turn");
+      turnMarked = true;
+    }
     let result!: T;
     editor.store.mergeRemoteChanges(() => {
       result = fn();
     });
     return result;
+  }
+
+  function markTurnBoundary() {
+    turnMarked = false;
   }
 
   return {
@@ -245,7 +268,9 @@ export function buildClientTools(ctx: ToolContext): Record<ToolName, (args: Reco
       const selector = (args.target ?? {}) as Selector;
       const resolved = resolveOne(editor, selector);
       if (typeof resolved !== "string") return resolved;
-      editor.zoomToBounds(editor.getShapePageBounds(resolved as TLShapeId)!, {
+      const bounds = editor.getShapePageBounds(resolved as TLShapeId);
+      if (!bounds) return err("Shape has no geometry yet — try again in a moment.");
+      editor.zoomToBounds(bounds, {
         targetZoom: 1.4,
         animation: { duration: 300 },
       });
@@ -278,5 +303,7 @@ export function buildClientTools(ctx: ToolContext): Record<ToolName, (args: Reco
         `Board has ${breakdown}.${sampleTexts.length ? ` Sample: ${sampleTexts.join("; ")}.` : ""}`,
       );
     },
+
+    markTurnBoundary,
   };
 }

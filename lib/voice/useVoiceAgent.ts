@@ -40,13 +40,24 @@ export interface VoiceAgentOptions {
    * useMemo) so the conversation does not re-init on every render.
    */
   clientTools?: ClientTools;
+  /**
+   * Invoked whenever the conversation transitions from a user message to an
+   * agent message (i.e. a new agent turn begins). Use this to coalesce a
+   * burst of tool calls into one history/undo entry.
+   */
+  onTurnBoundary?: () => void;
 }
+
+const MIC_DEVICE_STORAGE_KEY = "voicenode:mic-device-id";
 
 export function useVoiceAgent(options: VoiceAgentOptions = {}) {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<AgentMode>("ptt");
   const startingRef = useRef(false);
+  // Tracks the source of the last message so we can fire onTurnBoundary on
+  // user -> agent transitions only.
+  const lastSourceRef = useRef<"user" | "agent" | null>(null);
 
   // Keep clientTools in a ref so the agent always invokes the latest handlers,
   // avoiding session re-init when the canvas editor identity changes.
@@ -54,6 +65,11 @@ export function useVoiceAgent(options: VoiceAgentOptions = {}) {
   useEffect(() => {
     toolsRef.current = options.clientTools ?? {};
   }, [options.clientTools]);
+
+  const onTurnBoundaryRef = useRef(options.onTurnBoundary);
+  useEffect(() => {
+    onTurnBoundaryRef.current = options.onTurnBoundary;
+  }, [options.onTurnBoundary]);
 
   // ElevenLabs requires tool returns to be string | number | void; we wrap
   // each handler so it always returns a JSON string of the structured result.
@@ -80,7 +96,11 @@ export function useVoiceAgent(options: VoiceAgentOptions = {}) {
         };
         return handler;
       },
-      ownKeys: () => Object.keys(toolsRef.current),
+      // Exclude internal helpers (markTurnBoundary, etc.) from the keys the
+      // SDK enumerates as callable tools — they're for the host hook, not
+      // the agent.
+      ownKeys: () =>
+        Object.keys(toolsRef.current).filter((k) => k !== "markTurnBoundary"),
       getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }),
     });
   }, []);
@@ -90,7 +110,31 @@ export function useVoiceAgent(options: VoiceAgentOptions = {}) {
     onConnect: () => setErrorMessage(null),
     onDisconnect: () => {},
     onMessage: (msg: unknown) => {
-      const entry = entryFromMessage(msg as RawMessage);
+      const raw = msg as RawMessage;
+      const source: "user" | "agent" = raw?.source === "user" ? "user" : "agent";
+      // Fire turn boundary on user -> agent transitions so tool-call bursts
+      // within a single agent turn collapse into one undo entry.
+      if (source === "agent" && lastSourceRef.current === "user") {
+        try {
+          onTurnBoundaryRef.current?.();
+        } catch {
+          // ignore — boundary callback errors should never crash the session
+        }
+        // Also call the convention-named markTurnBoundary handler on the
+        // client-tools bag if present. This lets buildClientTools() expose
+        // turn-scoped history-marking without the consumer needing to wire
+        // a separate callback through.
+        try {
+          const tools = toolsRef.current as ClientTools & {
+            markTurnBoundary?: () => void;
+          };
+          tools.markTurnBoundary?.();
+        } catch {
+          // ignore
+        }
+      }
+      lastSourceRef.current = source;
+      const entry = entryFromMessage(raw);
       if (entry) setTranscript((t) => [...t, entry]);
     },
     onError: (err: unknown) => {
@@ -109,7 +153,31 @@ export function useVoiceAgent(options: VoiceAgentOptions = {}) {
     startingRef.current = true;
     try {
       setErrorMessage(null);
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const deviceId =
+        typeof window !== "undefined"
+          ? (window.localStorage.getItem(MIC_DEVICE_STORAGE_KEY) ?? undefined)
+          : undefined;
+      try {
+        await navigator.mediaDevices.getUserMedia({
+          audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+        });
+      } catch (mediaErr) {
+        // Selected device may be unplugged or otherwise unavailable; fall back
+        // to the system default rather than failing the whole session.
+        if (
+          deviceId &&
+          mediaErr instanceof Error &&
+          (mediaErr.name === "OverconstrainedError" ||
+            mediaErr.name === "NotFoundError")
+        ) {
+          console.warn(
+            `[voice] Mic device "${deviceId}" unavailable (${mediaErr.name}); falling back to default.`,
+          );
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+        } else {
+          throw mediaErr;
+        }
+      }
       const tokenRes = await fetch("/api/agent/token", { cache: "no-store" });
       if (!tokenRes.ok) {
         const { error } = await tokenRes.json().catch(() => ({ error: tokenRes.statusText }));
