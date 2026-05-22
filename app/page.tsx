@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-zinc-50 px-8 py-24 text-center dark:bg-zinc-950">
@@ -10,15 +12,22 @@ export default function Home() {
       </h1>
       <p className="max-w-xl text-pretty text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
         Sticky notes, arrows, groups — created and rearranged live by an AI
-        agent you converse with naturally. Multiplayer, public or private,
-        powered by ElevenLabs and Supabase.
+        agent you converse with naturally. No login. Anyone can edit.
       </p>
-      <a
-        href="/login"
-        className="inline-flex h-11 items-center justify-center rounded-md bg-zinc-950 px-5 text-sm font-medium text-zinc-50 transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
-      >
-        Sign in to start
-      </a>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Link
+          href="/dashboard"
+          className="inline-flex h-11 items-center justify-center rounded-md bg-zinc-950 px-5 text-sm font-medium text-zinc-50 transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
+        >
+          Open dashboard
+        </Link>
+        <Link
+          href="/b/11111111-1111-1111-1111-111111111111"
+          className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-200 px-5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+        >
+          Try the welcome board →
+        </Link>
+      </div>
     </main>
   );
 }
