@@ -5,6 +5,20 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Visibility } from "@/lib/supabase/types";
+import { ipBucketKey, rateLimitBump } from "@/lib/rate-limit/server";
+
+const CREATE_BOARD_LIMIT = { max: 5, windowSeconds: 60 };
+const MUTATE_BOARD_LIMIT = { max: 20, windowSeconds: 60 };
+
+async function enforceLimit(
+  prefix: string,
+  limit: { max: number; windowSeconds: number },
+  friendly: string,
+) {
+  const key = await ipBucketKey(prefix);
+  const { allowed } = await rateLimitBump(key, limit.max, limit.windowSeconds);
+  if (!allowed) throw new Error(friendly);
+}
 
 // Hand-rolled Database type doesn't yet satisfy postgrest GenericSchema; drop typing
 // here until `supabase gen types typescript` output replaces lib/supabase/types.ts.
@@ -21,6 +35,11 @@ async function anonClient(): Promise<AnyClient> {
 }
 
 export async function createBoard(formData: FormData) {
+  await enforceLimit(
+    "create_board",
+    CREATE_BOARD_LIMIT,
+    "Rate limit: too many boards created. Try again in a minute.",
+  );
   const title = (formData.get("title") as string | null)?.trim() || "Untitled board";
   const supabase = await anonClient();
   const { data, error } = await supabase
@@ -35,6 +54,11 @@ export async function createBoard(formData: FormData) {
 export async function renameBoard(boardId: string, formData: FormData) {
   const title = (formData.get("title") as string | null)?.trim();
   if (!title) return;
+  await enforceLimit(
+    "mutate_board",
+    MUTATE_BOARD_LIMIT,
+    "Rate limit: too many board changes. Try again in a minute.",
+  );
   const supabase = await anonClient();
   const { error } = await supabase.from("boards").update({ title }).eq("id", boardId);
   if (error) throw new Error(error.message);
@@ -42,6 +66,11 @@ export async function renameBoard(boardId: string, formData: FormData) {
 }
 
 export async function deleteBoard(boardId: string) {
+  await enforceLimit(
+    "mutate_board",
+    MUTATE_BOARD_LIMIT,
+    "Rate limit: too many board changes. Try again in a minute.",
+  );
   const supabase = await anonClient();
   const { error } = await supabase.from("boards").delete().eq("id", boardId);
   if (error) throw new Error(error.message);
