@@ -1,9 +1,8 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, assertSupabaseEnv } from "./env";
+import type { Database } from "./types";
 
-export type SupabaseBrowserClient = ReturnType<typeof createBrowserClient>;
-
-export function createClient(): SupabaseBrowserClient {
+export function createClient() {
   assertSupabaseEnv();
-  return createBrowserClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  return createBrowserClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 }
